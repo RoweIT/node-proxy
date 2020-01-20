@@ -1,8 +1,3 @@
-//  Install npm dependencies first
-//  npm init
-//  npm install --save url@0.10.3
-//  npm install --save http-proxy@1.11.1
-
 var httpProxy = require("http-proxy");
 var http = require("http");
 var url = require("url");
