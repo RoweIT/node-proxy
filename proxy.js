@@ -32,7 +32,6 @@ var server = http.createServer(function (req, res) {
   proxy.web(req, res, {target: target});
 
   if (regex.test(req.url)) console.log("HTTP - ", req.url);
-  console.log(req.headers["backend"]);
 }).listen(port);  //this is the port your clients will connect to
 console.log("Ready on :", port, "...");
 
