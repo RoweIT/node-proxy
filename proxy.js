@@ -2,18 +2,28 @@ var httpProxy = require("http-proxy");
 var http = require("http");
 var url = require("url");
 var net = require('net');
-var port = 8012;
 
-let regex = ".*";
-if(process.argv.length > 2) {
-  port = Number(process.argv[2]);
-  if(process.argv.length > 3) {
-    regex = process.argv[3];
+const config = {
+  port: 8012,
+  urlRegex: ".*",
+  headerRegex: null
+};
+
+function resolveSettings() {
+  for (let i = 0; i < process.argv.length; i++) {
+      if(i <= 1) continue; //ignore node call and index file location
+  
+      const arg = process.argv[i];
+      const info = arg.split(":");
+      config[info[0]] = info [1];
   }
 }
 
-console.log("Will print matches to '" + regex + "'");
-regex = new RegExp(regex);
+resolveSettings();
+console.log("Config:\r\n" + JSON.stringify(config, null, "\t"));
+
+config.urlRegex = new RegExp(config.urlRegex);
+config.headerRegex = new RegExp(config.headerRegex);
 
 var server = http.createServer(function (req, res) {
   var urlObj = url.parse(req.url);
@@ -31,9 +41,10 @@ var server = http.createServer(function (req, res) {
 
   proxy.web(req, res, {target: target});
 
-  if (regex.test(req.url)) console.log("HTTP - ", req.url);
-}).listen(port);  //this is the port your clients will connect to
-console.log("Ready on :", port, "...");
+  if (config.urlRegex.test(req.url)) console.log("HTTP - ", req.url);
+  handleHeaderLogging(req);
+}).listen(config.port);  //this is the port your clients will connect to
+console.log("Proxy started");
 
 var regex_hostport = /^([^:]+)(:([0-9]+))?$/;
 
@@ -52,12 +63,23 @@ var getHostPortFromString = function (hostString, defaultPort) {
   return ( [host, port] );
 };
 
+function handleHeaderLogging(req) {
+  if(config.headerRegex != null) {
+    Object.keys(req.headers).forEach(headerName => {
+      if (config.headerRegex.test(headerName) || config.headerRegex.test(req.headers[headerName])) {
+        console.log("Header match for", req.headers.host, "-", `"${headerName}: ${req.headers[headerName]}"`);
+      }
+    });
+  }
+}
+
 server.addListener('connect', function (req, socket, bodyhead) {
   var hostPort = getHostPortFromString(req.url, 443);
   var hostDomain = hostPort[0];
   var port = parseInt(hostPort[1]);
-  
-  if (regex.test(req.url)) console.log("HTTPS - ", req.url);
+
+  if (config.urlRegex.test(req.url)) console.log("HTTPS - ", req.url);
+  handleHeaderLogging(req);
 
   var proxySocket = new net.Socket();
   proxySocket.connect(port, hostDomain, function () {
